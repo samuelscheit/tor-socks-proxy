@@ -5,7 +5,7 @@ services:
         build: .
         image: tor-socks-proxy:local
         ports:
-            - "127.0.0.1:8853:53/udp"
-            - "127.0.0.1:9150:9150/tcp"
-            - "127.0.0.1:3128:3128/tcp"
+            - "8853:53/udp"
+            - "9150:9150/tcp"
+            - "3128:3128/tcp"
         restart: unless-stopped
