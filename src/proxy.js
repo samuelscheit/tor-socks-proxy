@@ -8,6 +8,28 @@ const { SocksClient } = require("socks");
 const EXIT_PARAM = process.env.TOR_EXIT_PARAM || "tor_exit";
 const CONNECT_EXIT_HEADER = (process.env.TOR_CONNECT_EXIT_HEADER || "x-tor-exit-country").toLowerCase();
 
+function getBasicAuthUsername(req) {
+	const header = req.headers["proxy-authorization"];
+	if (!header) return null;
+	const value = Array.isArray(header) ? header[0] : header;
+	if (!value) return null;
+
+	const [scheme, encoded] = String(value).split(/\s+/, 2);
+	if (!scheme || scheme.toLowerCase() !== "basic") return null;
+	if (!encoded) return null;
+
+	let decoded;
+	try {
+		decoded = Buffer.from(encoded, "base64").toString("utf8");
+	} catch {
+		return null;
+	}
+
+	const idx = decoded.indexOf(":");
+	const username = (idx >= 0 ? decoded.slice(0, idx) : decoded).trim();
+	return username || null;
+}
+
 function stripExitParam(urlObj) {
 	const cc = urlObj.searchParams.get(EXIT_PARAM);
 	urlObj.searchParams.delete(EXIT_PARAM);
@@ -25,7 +47,6 @@ function getCountryFromConnectHeaders(req) {
 function createHttpProxyServer({ torManager }) {
 	const server = http.createServer(async (clientReq, clientRes) => {
 		try {
-			console.log("req", clientReq.method, clientReq.url);
 			if (clientReq.method === "GET" && clientReq.url === "/__health") {
 				clientRes.writeHead(200, { "content-type": "text/plain" });
 				clientRes.end("ok");
@@ -34,7 +55,9 @@ function createHttpProxyServer({ torManager }) {
 
 			// In an HTTP proxy, clientReq.url is expected to be an absolute URL.
 			const urlObj = new URL(clientReq.url);
-			const { countryCode, strippedUrl } = stripExitParam(urlObj);
+			const { countryCode: countryFromQuery, strippedUrl } = stripExitParam(urlObj);
+			const countryFromAuth = getBasicAuthUsername(clientReq);
+			const countryCode = countryFromQuery || countryFromAuth;
 
 			const socksPort = await torManager.getSocksPortForRequest({ countryCode });
 			const agent = new SocksProxyAgent(`socks5h://127.0.0.1:${socksPort}`);
@@ -92,7 +115,7 @@ function createHttpProxyServer({ torManager }) {
 		const port = parseInt(portStr || "443", 10);
 
 		try {
-			const countryCode = getCountryFromConnectHeaders(req);
+			const countryCode = getBasicAuthUsername(req) || getCountryFromConnectHeaders(req);
 			const socksPort = await torManager.getSocksPortForRequest({ countryCode });
 
 			const { socket: torSocket } = await SocksClient.createConnection({

@@ -90,6 +90,20 @@ Notes:
 - Country codes must be ISO 3166-1 alpha-2 (e.g. `us`, `de`, `fr`).
 - The first request for a new country will be slower while Tor bootstraps.
 
+#### Alternative: use proxy username as country code
+
+You can also select the exit country by setting the **HTTP proxy username** to the country code (password can be anything).
+
+Examples:
+
+```sh
+# HTTP request
+curl -x http://127.0.0.1:3128 -U us:any http://ipinfo.tw/ip
+
+# HTTPS request (CONNECT)
+curl -x http://127.0.0.1:3128 -U us:any https://ipinfo.tw/ip
+```
+
 ### Stopping the Proxy
 
 ```sh
