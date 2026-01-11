@@ -10,18 +10,20 @@
 
 [![Docker Hub badge](http://dockeri.co/image/peterdavehello/tor-socks-proxy)](https://hub.docker.com/r/peterdavehello/tor-socks-proxy/)
 
-The super easy way to set up a [Tor](https://www.torproject.org) [SOCKS5](https://en.wikipedia.org/wiki/SOCKS#SOCKS5) [proxy server](https://en.wikipedia.org/wiki/Proxy_server) inside a [Docker](https://en.wikipedia.org/wiki/Docker_(software)) [container](https://en.wikipedia.org/wiki/Container_(virtualization)), without Tor relay/exit node function enabled.
+The super easy way to set up a [Tor](https://www.torproject.org) [SOCKS5](https://en.wikipedia.org/wiki/SOCKS#SOCKS5) [proxy server](https://en.wikipedia.org/wiki/Proxy_server) inside a [Docker](<https://en.wikipedia.org/wiki/Docker_(software)>) [container](<https://en.wikipedia.org/wiki/Container_(virtualization)>), without Tor relay/exit node function enabled.
+
+This fork/extension also includes a Node.js **HTTP proxy** that can select Tor **exit country per request**. It keeps one default Tor instance running, and lazily starts additional Tor instances the first time a given country is requested (then reuses them).
 
 ## Docker image Repository
 
 We push the built image to Docker Hub and GitHub Container Registry:
 
 - GitHub Container Registry:
-  - `ghcr.io/peterdavehello/tor-socks-proxy`
-  - <https://github.com/PeterDaveHello/tor-socks-proxy/pkgs/container/tor-socks-proxy>
+    - `ghcr.io/peterdavehello/tor-socks-proxy`
+    - <https://github.com/PeterDaveHello/tor-socks-proxy/pkgs/container/tor-socks-proxy>
 - Docker Hub:
-  - `peterdavehello/tor-socks-proxy`
-  - <https://hub.docker.com/r/peterdavehello/tor-socks-proxy/>
+    - `peterdavehello/tor-socks-proxy`
+    - <https://hub.docker.com/r/peterdavehello/tor-socks-proxy/>
 
 Use the prefix `ghcr.io/` if you prefer to use GitHub Container Registry.
 
@@ -35,7 +37,7 @@ docker run -d --restart=always --name tor-socks-proxy -p 127.0.0.1:9150:9150/tcp
 
 - `--restart=always`: This ensures the container automatically restarts whenever the system reboots.
 - `-p 127.0.0.1:9150:9150/tcp`: This binds the container to localhost, and you should not change this IP unless you want to expose the proxy to a local network or the Internet.
-  - You can change the first `9150` to any available port. Please note that ports `9050`/`9150` may be occupied if you are running another Tor client like TorBrowser.
+    - You can change the first `9150` to any available port. Please note that ports `9050`/`9150` may be occupied if you are running another Tor client like TorBrowser.
 
 ### Start or stop an existing Instance manually
 
@@ -59,6 +61,35 @@ docker logs tor-socks-proxy
 curl --socks5-hostname 127.0.0.1:9150 https://ipinfo.tw/ip
 ```
 
+### HTTP proxy (per-request exit country)
+
+Run via docker-compose:
+
+```sh
+docker compose up -d --build
+```
+
+Then use the HTTP proxy on `127.0.0.1:3128`.
+
+**For plain HTTP requests**, specify the exit country via a URL query parameter (default name: `tor_exit`). The proxy strips the parameter before forwarding upstream.
+
+Example (use US exit):
+
+```sh
+curl -x http://127.0.0.1:3128 'http://ipinfo.tw/ip?tor_exit=us'
+```
+
+**For HTTPS requests**, clients typically use `CONNECT`, which has no URL query string. This proxy supports an optional proxy header instead:
+
+```sh
+curl -x http://127.0.0.1:3128 --proxy-header 'X-Tor-Exit-Country: us' https://ipinfo.tw/ip
+```
+
+Notes:
+
+- Country codes must be ISO 3166-1 alpha-2 (e.g. `us`, `de`, `fr`).
+- The first request for a new country will be slower while Tor bootstraps.
+
 ### Stopping the Proxy
 
 ```sh
@@ -80,6 +111,7 @@ Publish DNS port during setup to query DNS requests over Tor:
 ```sh
 docker run -d --restart=always --name tor-socks-proxy -p 127.0.0.1:9150:9150/tcp -p 127.0.0.1:53:8853/udp peterdavehello/tor-socks-proxy:latest
 ```
+
 ## Sponsor
 
 <a href="https://m.do.co/c/1fdd0a1d695a"><img src="https://opensource.nyc3.cdn.digitaloceanspaces.com/attribution/assets/SVG/DO_Logo_horizontal_blue.svg" width="201px"></a>

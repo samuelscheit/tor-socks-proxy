@@ -1,11 +1,11 @@
 ---
-version: "2"
-
 services:
-  tor-socks-proxy:
-    container_name: tor-socks-proxy
-    image: peterdavehello/tor-socks-proxy:latest
-    ports:
-      - "127.0.0.1:8853:53/udp"
-      - "127.0.0.1:9150:9150/tcp"
-    restart: unless-stopped
+    tor-socks-proxy:
+        container_name: tor-socks-proxy
+        build: .
+        image: tor-socks-proxy:local
+        ports:
+            - "127.0.0.1:8853:53/udp"
+            - "127.0.0.1:9150:9150/tcp"
+            - "127.0.0.1:3128:3128/tcp"
+        restart: unless-stopped
