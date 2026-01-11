@@ -71,18 +71,20 @@ docker compose up -d --build
 
 Then use the HTTP proxy on `127.0.0.1:3128`.
 
+This HTTP proxy **requires proxy authentication**. If you don't provide credentials, it will return `407 Proxy Authentication Required`.
+
 **For plain HTTP requests**, specify the exit country via a URL query parameter (default name: `tor_exit`). The proxy strips the parameter before forwarding upstream.
 
 Example (use US exit):
 
 ```sh
-curl -x http://127.0.0.1:3128 'http://ipinfo.tw/ip?tor_exit=us'
+curl -x http://127.0.0.1:3128 -U any:any 'http://ipinfo.tw/ip?tor_exit=us'
 ```
 
 **For HTTPS requests**, clients typically use `CONNECT`, which has no URL query string. This proxy supports an optional proxy header instead:
 
 ```sh
-curl -x http://127.0.0.1:3128 --proxy-header 'X-Tor-Exit-Country: us' https://ipinfo.tw/ip
+curl -x http://127.0.0.1:3128 -U any:any --proxy-header 'X-Tor-Exit-Country: us' https://ipinfo.tw/ip
 ```
 
 Notes:
@@ -92,7 +94,7 @@ Notes:
 
 #### Alternative: use proxy username as country code
 
-You can also select the exit country by setting the **HTTP proxy username** to the country code (password can be anything).
+You can also select the exit country by setting the **HTTP proxy username** to the country code (password can be anything; it is ignored).
 
 Examples:
 

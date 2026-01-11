@@ -44,6 +44,29 @@ function getCountryFromConnectHeaders(req) {
 	return v;
 }
 
+function writeProxyAuthRequired(res) {
+	res.writeHead(407, {
+		"proxy-authenticate": 'Basic realm="tor"',
+		"content-type": "text/plain",
+	});
+	res.end("Proxy authentication required\n");
+}
+
+function writeProxyAuthRequiredForConnect(socket) {
+	const response =
+		"HTTP/1.1 407 Proxy Authentication Required\r\n" + 'Proxy-Authenticate: Basic realm="tor"\r\n' + "Connection: close\r\n" + "\r\n";
+	try {
+		socket.write(response);
+		socket.end();
+	} catch {
+		try {
+			socket.destroy();
+		} catch {
+			// ignore
+		}
+	}
+}
+
 function createHttpProxyServer({ torManager }) {
 	const server = http.createServer(async (clientReq, clientRes) => {
 		try {
@@ -53,10 +76,15 @@ function createHttpProxyServer({ torManager }) {
 				return;
 			}
 
+			const countryFromAuth = getBasicAuthUsername(clientReq);
+			if (!countryFromAuth) {
+				writeProxyAuthRequired(clientRes);
+				return;
+			}
+
 			// In an HTTP proxy, clientReq.url is expected to be an absolute URL.
 			const urlObj = new URL(clientReq.url);
 			const { countryCode: countryFromQuery, strippedUrl } = stripExitParam(urlObj);
-			const countryFromAuth = getBasicAuthUsername(clientReq);
 			const countryCode = countryFromQuery || countryFromAuth;
 
 			const socksPort = await torManager.getSocksPortForRequest({ countryCode });
@@ -115,7 +143,13 @@ function createHttpProxyServer({ torManager }) {
 		const port = parseInt(portStr || "443", 10);
 
 		try {
-			const countryCode = getBasicAuthUsername(req) || getCountryFromConnectHeaders(req);
+			const countryFromAuth = getBasicAuthUsername(req);
+			if (!countryFromAuth) {
+				writeProxyAuthRequiredForConnect(clientSocket);
+				return;
+			}
+
+			const countryCode = countryFromAuth || getCountryFromConnectHeaders(req);
 			const socksPort = await torManager.getSocksPortForRequest({ countryCode });
 
 			const { socket: torSocket } = await SocksClient.createConnection({
